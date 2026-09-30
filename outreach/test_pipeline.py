@@ -64,6 +64,19 @@ class PipelineTests(unittest.TestCase):
             smtp.assert_not_called()
     def test_no_findings_no_outreach_draft(self):
         self.assertEqual(p.compose(self.cfg, 'shop.test', []), ('', ''))
+    def test_humanizer_wording_preserves_evidence_and_footer(self):
+        evidence = [{'url': 'https://shop.test/products/lamp',
+                     'observation': '12 image elements have no alt attribute in the fetched HTML'}]
+        _, body = p.compose(self.cfg, 'shop.test', evidence)
+        self.assertIn('shop.test/products/lamp', body)
+        self.assertIn('12 images without alt attributes', body)
+        self.assertIn('HTML I fetched', body)
+        self.assertIn('in a browser before recommending', body)
+        self.assertIn(self.cfg['postal_address'], body)
+        self.assertIn('Reply "no thanks"', body)
+    def test_unknown_observation_keeps_case_and_numbers(self):
+        self.assertEqual(p.plain_observation('HTTP 503 occurred on 2 pages'), 'HTTP 503 occurred on 2 pages.')
+        self.assertIn('1 image without', p.plain_observation('1 image elements have no alt attribute in the fetched HTML'))
     def test_successful_send_persists_and_deduplicates(self):
         self.add()
         with patch.dict(p.os.environ, self.env), patch.object(p,'sync_replies'), patch.object(p.smtplib,'SMTP') as smtp:

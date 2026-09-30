@@ -155,9 +155,9 @@ def discover(db, cfg, crawler):
                     continue
                 if host(url) == 'peopleperhour.com' and not re.search(r'-\d{5,}(?:[/?#]|$)', url):
                     continue
-                draft = (f'Hello,\n\nI saw your listing "{title}". '
-                         'I would be interested in discussing the scope, existing site, and success criteria. '
-                         'I can then propose a phased implementation plan and estimate.\n\n'
+                draft = (f'Hi,\n\nI saw your project, "{title}". '
+                         'Can you share your priorities, target date and any existing site? '
+                         'That would help me outline the work and give you an estimate.\n\n'
                          f"{cfg['sender_name'] or '[Sender name]'}\n{cfg['portfolio_url'] or '[Portfolio URL]'}")
                 db.execute('INSERT INTO listings(url,title,source,seen,draft) VALUES(?,?,?,?,?) '
                            'ON CONFLICT(url) DO UPDATE SET seen=excluded.seen,title=excluded.title,draft=excluded.draft',
@@ -211,16 +211,33 @@ def answer_readiness(pages):
                         'interpretation': 'Signals for manual AEO/GEO review, not a ranking score. Other structured-data formats and rendered content are not assessed.'})
     return signals
 
+def plain_observation(observation):
+    """Humanizer-edited wording for known findings; preserve facts and HTML scope."""
+    images = re.fullmatch(r'(\d+) image elements have no alt attribute in the fetched HTML', observation)
+    if images:
+        count = int(images.group(1))
+        noun = 'image' if count == 1 else 'images'
+        return f'The HTML I fetched includes {count} {noun} without alt attributes.'
+    wording = {
+        'No title element was found in the fetched HTML': "I couldn't find a title element in the HTML I fetched.",
+        'No meta description content was found in the fetched HTML': "I couldn't find meta description content in the HTML I fetched.",
+        'No H1 heading was found in the fetched HTML': "I couldn't find an H1 heading in the HTML I fetched.",
+        'No viewport meta tag was found in the fetched HTML': "I couldn't find a viewport meta tag in the HTML I fetched.",
+        'No canonical link was found in the fetched HTML': "I couldn't find a canonical link in the HTML I fetched."
+    }
+    return wording.get(observation, observation.rstrip('. ') + '.')
+
+
 def compose(cfg, domain, evidence):
     if not evidence:
         return '', ''
     first = evidence[0]
     page_path = urlsplit(first['url']).path or '/'
     subject = f'Website improvements for {domain}'
-    body = (f"Hello {domain} team,\n\nOn your {page_path} page, {first['observation'][0].lower() + first['observation'][1:]}. "
-            'A rendered-page check would confirm this.\n\n'
-            f"{cfg['business_name']} offers {cfg['offer']}. "
-            'Would you like a free audit outlining the most useful improvements?\n\n'
+    body = (f"Hi {domain} team,\n\nI checked {domain}{page_path}. {plain_observation(first['observation'])} "
+            "I'd check the page in a browser before recommending a fix.\n\n"
+            f"At {cfg['business_name']}, we work on {cfg['offer']}. "
+            'Can I send you a free audit with suggested fixes?\n\n'
             f"{cfg['sender_name'] or '[Sender name]'}\n{cfg['business_name'] or '[Business name]'}\n"
             f"{cfg['portfolio_url'] or '[Portfolio URL]'}\n{cfg['postal_address'] or '[Business postal address]'}\n\n"
             'Business service offer. Reply "no thanks" to stop further outreach.')

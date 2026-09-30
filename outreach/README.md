@@ -44,6 +44,10 @@ Disable-ScheduledTask -TaskName Growplus-Outreach-send
 
 ## What is implemented
 
+Personalized email writing uses [blader/humanizer](https://github.com/blader/humanizer). A pinned copy of its writing skill and MIT license is in `writing/humanizer/`; `SOURCE.json` records the upstream revision. `AGENTS.md` requires the full Humanizer review for assistant-written emails and freelance proposals. Only the final email goes to the recipient.
+
+The Python templates were edited using that guidance: direct openings, concrete page observations, plain wording and one question. Scheduled template generation does not invoke an AI model or run the full skill on every email. Observation counts, HTML-only scope, sender details and opt-out text are preserved. Already-sent messages and their receipts are unchanged.
+
 - DDGS free web discovery; optional Brave API support only when explicitly configured.
 - Scrapling HTML fetches with public-address checks, robots.txt checks, crawl delays, bounded redirects and page limits.
 - Ecommerce signals, page-level title, description, heading, viewport, canonical and image-alt observations.

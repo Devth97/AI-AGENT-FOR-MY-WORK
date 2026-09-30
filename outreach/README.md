@@ -23,6 +23,24 @@ During an interactive assistant session, the connected Gmail tool can send autho
 
 The receipt importer accepts full Gmail message objects, checks the sender and SENT label, and preserves the actual text, timestamp and RFC Message-ID. Receipt files and prospect records stay in ignored `data/`.
 
+For the authorized 250-prospect interactive campaign, `connected_campaign.py` reserves reviewed messages before sending. It checks the total campaign target, suppression and prior contact in one transaction. Check Gmail history before marking a message `history_checked`. A reservation counts toward the target until its Gmail receipt is reconciled, preventing retries after an uncertain result. Store one receipt file per message to avoid Windows command-length limits. This helper never sends mail itself; the connected Gmail tool sends each reviewed message individually. The scheduled SMTP cap remains 50 per day.
+
+```powershell
+.\.venv\Scripts\python.exe connected_campaign.py data/reviewed-messages.json --target 250
+.\.venv\Scripts\python.exe -m unittest -v test_pipeline.py test_connected_campaign.py
+```
+
+## Larger research batches
+
+`import_registry.py` imports candidate domains from the [StoreProfiles public registry](https://storeprofiles.com/dataset), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Source attribution, retrieval date and the directory slug stay with each lead. Directory scores do not qualify leads or become email claims. Scrapling checks each store's own pages for published role contacts and page evidence.
+
+```powershell
+.\.venv\Scripts\python.exe import_registry.py
+.\.venv\Scripts\python.exe research_batch.py --searches 0 --max-sites 300 --workers 8
+```
+
+The research runner supports up to eight independent site audits at once, with the existing robots checks and crawl delays. Each worker has an isolated temporary database; results only update leads still marked `new`. It shares the scheduler lock and never sends mail. `--searches 24` also runs rotating free searches across ecommerce niches and markets; search services may throttle these requests.
+
 The connected Gmail tool in chat confirms the sender identity, but its login cannot be exported into a local scheduled Python program. This local runner uses Gmail SMTP with STARTTLS and IMAP with TLS.
 
 1. Create a Gmail app password if your account supports it. [Google instructions](https://support.google.com/accounts/answer/185833). Do not share the password in chat.

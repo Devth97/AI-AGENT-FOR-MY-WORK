@@ -15,6 +15,14 @@ Results: `data/leads.csv`, `data/listings.csv`, `data/outreach.sqlite`, and `dat
 
 ## Connect sending
 
+During an interactive assistant session, the connected Gmail tool can send authorized outreach directly. This does not require the local SMTP app password. Confirmed sends must be imported into the same ledger so the background sender cannot contact those prospects again:
+
+```powershell
+.\.venv\Scripts\python.exe record_gmail_receipts.py data/gmail-sent-receipts.json
+```
+
+The receipt importer accepts full Gmail message objects, checks the sender and SENT label, and preserves the actual text, timestamp and RFC Message-ID. Receipt files and prospect records stay in ignored `data/`.
+
 The connected Gmail tool in chat confirms the sender identity, but its login cannot be exported into a local scheduled Python program. This local runner uses Gmail SMTP with STARTTLS and IMAP with TLS.
 
 1. Create a Gmail app password if your account supports it. [Google instructions](https://support.google.com/accounts/answer/185833). Do not share the password in chat.
@@ -24,6 +32,8 @@ The connected Gmail tool in chat confirms the sender identity, but its login can
 ## Schedule
 
 `./install-schedule.ps1` registers two Windows tasks: research every six hours and a send attempt every fifteen minutes. Research and sending share an exclusive process lock. Send attempts do nothing while `send_enabled` is false. The daily cap is 50, with at least 15 minutes between sends. The PC must be awake, connected to the internet, and this Windows account logged in. This is not cloud hosting.
+
+On Windows installations that disable scripts, run the reviewed scripts with a process-only override, for example `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\connect-gmail.ps1`. The scheduled tasks use this process-only override; they do not change the machine-wide execution policy.
 
 To stop sending, set `send_enabled` to `false` in `config.json`. To stop both schedules:
 

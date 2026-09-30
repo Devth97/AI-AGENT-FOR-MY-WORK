@@ -1,0 +1,74 @@
+# Growplus AI Agency outreach automation
+
+Local Python project for worldwide ecommerce prospect research and individual outreach. Sender: Khalandar Thameem, khalandarthameem97@gmail.com. Target: 50 qualified first-contact emails per UTC day. No paid search or AI API is required by default.
+
+## Run
+
+```powershell
+cd 'D:\AI AGENT\outreach'
+.\run.ps1 research
+.\run.ps1 export
+.\.venv\Scripts\python.exe -m unittest -v test_pipeline.py
+```
+
+Results: `data/leads.csv`, `data/listings.csv`, `data/outreach.sqlite`, and `data/runs.log`. CSV values are escaped to prevent scraped text being evaluated as spreadsheet formulas. The evidence column includes page URLs, observations, published contact sources, and AEO/GEO review signals.
+
+## Connect sending
+
+The connected Gmail tool in chat confirms the sender identity, but its login cannot be exported into a local scheduled Python program. This local runner uses Gmail SMTP with STARTTLS and IMAP with TLS.
+
+1. Create a Gmail app password if your account supports it. [Google instructions](https://support.google.com/accounts/answer/185833). Do not share the password in chat.
+2. Run `./connect-gmail.ps1` locally and enter that app password in the credential prompt. Windows encrypts it for the current Windows user. It is stored under `data/`, which is excluded from Git.
+3. Run `./activate-sending.ps1`. This verifies Gmail authentication and enables sending in `config.json`. It does not send a test email. The scheduler can then send one qualified email at a time.
+
+## Schedule
+
+`./install-schedule.ps1` registers two Windows tasks: research every six hours and a send attempt every fifteen minutes. Research and sending share an exclusive process lock. Send attempts do nothing while `send_enabled` is false. The daily cap is 50, with at least 15 minutes between sends. The PC must be awake, connected to the internet, and this Windows account logged in. This is not cloud hosting.
+
+To stop sending, set `send_enabled` to `false` in `config.json`. To stop both schedules:
+
+```powershell
+Disable-ScheduledTask -TaskName Growplus-Outreach-research
+Disable-ScheduledTask -TaskName Growplus-Outreach-send
+```
+
+## What is implemented
+
+- DDGS free web discovery; optional Brave API support only when explicitly configured.
+- Scrapling HTML fetches with public-address checks, robots.txt checks, crawl delays, bounded redirects and page limits.
+- Ecommerce signals, page-level title, description, heading, viewport, canonical and image-alt observations.
+- AEO/GEO signals: question headings, JSON-LD types and malformed JSON-LD counts. These are review inputs, not proof that a site ranks poorly or needs special AI markup.
+- Public role-address extraction from mailto links on the same domain. No guessed personal addresses. Addresses are syntactically checked, not guaranteed deliverable.
+- Personalized plain-text emails grounded in recorded observations; no fabricated traffic losses, rankings, testimonials or revenue promises.
+- Freelancer listing discovery and title-based proposal drafts. Listing presence does not establish an open job; the exported status tells you to verify on the platform. No platform proposals are automatically submitted.
+- Deduplication by domain and recipient, daily limits, reply suppression, and conservative handling of uncertain SMTP outcomes. Any reply stops further automated contact; a delivery report can suppress an address too.
+
+## Limits to understand
+
+50 is a target and cap, not a guaranteed daily supply. Discovery cannot enumerate every ecommerce site. Free search can throttle or fail. Static HTML checks can miss JavaScript-rendered content. Missing canonical tags or meta descriptions alone do not prove commercial need. Page findings require contextual review before offering a redesign. Source selectors can change; inspect the logs if listing counts fall to zero. The initial implementation does not measure Core Web Vitals, search rankings, AI citations, or backlink quality.
+
+Only initial outreach is automated. There are no follow-up sequences, meeting booking, CRM deal stages or automatic positive-reply responses. An SMTP timeout may have delivered the message; such a lead is marked `delivery_unknown` and must be reconciled against Sent Mail before any manual retry. Do not reset that state blindly.
+
+The reply sync checks INBOX, so keep replies and delivery reports there; do not auto-archive them. All replies require human follow-up. Domain matching does not merge subsidiaries or alternate company domains. This implementation does not determine jurisdiction or consent from a website address; worldwide discovery is not worldwide permission to email. Apply the relevant recipient-market rules when selecting campaigns. US commercial email requirements include a postal address and opt-out mechanism: [FTC guidance](https://www.ftc.gov/business-guidance/resources/can-spam-act-compliance-guide-business).
+
+Manual suppression:
+
+```powershell
+.\.venv\Scripts\python.exe pipeline.py suppress --email address@example.com
+```
+
+## Repository choices
+
+| Component | Role in this project |
+| --- | --- |
+| [Scrapling](https://github.com/D4Vinci/Scrapling) | Installed; page fetching and HTML extraction. |
+| [DDGS](https://github.com/deedy5/ddgs) | Installed; free search discovery. |
+| Python standard library + SQLite | Email composition, SMTP/IMAP, tracking and suppression. |
+| [JobSpy](https://github.com/speedyapply/JobSpy) | Evaluated; job-board searches differ from freelance buyer listings. Not installed. |
+| [StaffSpy](https://github.com/cullenwatson/StaffSpy) | Evaluated; LinkedIn staff collection is unnecessary for public store contacts. Not installed. |
+| [Reacher](https://github.com/reacherhq/check-if-email-exists) | Optional future self-hosted mailbox checking. Not installed; verification is not guaranteed by this project. |
+| [Firecrawl](https://github.com/firecrawl/firecrawl) | Evaluated; overlaps with the requested Scrapling layer. Not installed. |
+| [Twenty](https://github.com/twentyhq/twenty) | Optional future CRM integration. SQLite currently tracks research and outreach. Not installed. |
+| [n8n](https://github.com/n8n-io/n8n) | Evaluated; Windows Task Scheduler runs this local workflow. n8n uses its Sustainable Use License, not an unrestricted open-source license. Not installed. |
+
+Google states that foundational SEO remains relevant to AI search features: [Google AI search guidance](https://developers.google.com/search/docs/appearance/ai-features). This project does not claim that FAQ schema, llms.txt, or any individual tag guarantees inclusion.

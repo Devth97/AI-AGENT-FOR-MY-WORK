@@ -1,0 +1,2 @@
+scrapling[fetchers]==0.4.15
+ddgs==9.16.0

@@ -30,6 +30,11 @@ class PipelineTests(unittest.TestCase):
     def test_private_url_rejected(self):
         with self.assertRaises(ValueError):
             p.public_url('http://127.0.0.1/')
+    def test_quick_view_links_audit_full_page_and_preserve_variant(self):
+        self.assertEqual(p.full_page_url('https://shop.test/products/item?section_id=quick-view&variant=12#details'),
+                         'https://shop.test/products/item?variant=12')
+        self.assertEqual(p.full_page_url('https://shop.test/products/item?view=quick'),
+                         'https://shop.test/products/item')
     def test_disabled_never_connects(self):
         self.cfg['send_enabled'] = False
         with patch.object(p, 'sync_replies') as sync:

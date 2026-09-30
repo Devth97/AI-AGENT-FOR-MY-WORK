@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from email import message_from_bytes
 from email.message import EmailMessage
 from email.utils import parseaddr, formataddr, make_msgid
-from urllib.parse import urljoin, urlsplit, urlencode, urldefrag
+from urllib.parse import urljoin, urlsplit, urlencode, urldefrag, parse_qsl, urlunsplit
 from urllib.request import Request, urlopen
 from urllib.robotparser import RobotFileParser
 
@@ -243,6 +243,13 @@ def compose(cfg, domain, evidence):
             'Business service offer. Reply "no thanks" to stop further outreach.')
     return subject, body
 
+def full_page_url(url):
+    parts = urlsplit(url)
+    query = [(key, value) for key, value in parse_qsl(parts.query, keep_blank_values=True)
+             if key.lower() not in ('view', 'section_id', 'sections')]
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, urlencode(query), ''))
+
+
 def audit(db, cfg, crawler):
     rows = db.execute("SELECT * FROM leads WHERE state='new' LIMIT ?", (cfg['max_audits_per_run'],)).fetchall()
     for row in rows:
@@ -256,7 +263,7 @@ def audit(db, cfg, crawler):
                 db.commit()
                 continue
             pages = [(row['url'], page)]
-            candidates = [urldefrag(u)[0] for u in links if host(u) == row['domain'] and any(x in u.lower() for x in ('/products/', '/contact', '/about', '/faq'))]
+            candidates = [full_page_url(u) for u in links if host(u) == row['domain'] and any(x in u.lower() for x in ('/products/', '/contact', '/about', '/faq'))]
             candidates.sort(key=lambda u: (0 if 'contact' in u.lower() else 1 if 'about' in u.lower() else 2 if 'faq' in u.lower() else 3))
             for url in list(dict.fromkeys(candidates))[:4]:
                 try:

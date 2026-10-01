@@ -13,7 +13,11 @@ if (Test-Path -LiteralPath $credentialFile) {
     $env:IMAP_PASSWORD = $env:SMTP_PASSWORD
 }
 try {
-    & (Join-Path $PSScriptRoot '.venv\Scripts\python.exe') (Join-Path $PSScriptRoot 'pipeline.py') $Mode
+    if ($Mode -eq 'research') {
+        & (Join-Path $PSScriptRoot '.venv\Scripts\python.exe') (Join-Path $PSScriptRoot 'research_batch.py') --searches 0 --max-sites 500 --workers 8
+    } else {
+        & (Join-Path $PSScriptRoot '.venv\Scripts\python.exe') (Join-Path $PSScriptRoot 'pipeline.py') $Mode
+    }
     if ($LASTEXITCODE -ne 0) { throw "Pipeline exited with code $LASTEXITCODE" }
 } finally {
     Remove-Item Env:SMTP_PASSWORD,Env:IMAP_PASSWORD -ErrorAction SilentlyContinue

@@ -67,6 +67,12 @@ class PipelineTests(unittest.TestCase):
         with patch.dict(p.os.environ, self.env), patch.object(p,'sync_replies'), patch.object(p.smtplib,'SMTP') as smtp:
             p.send_one(self.db, self.cfg)
             smtp.assert_not_called()
+    def test_campaign_target_blocks_smtp(self):
+        self.add()
+        self.cfg['campaign_target_total'] = 0
+        with patch.dict(p.os.environ, self.env), patch.object(p,'sync_replies'), patch.object(p.smtplib,'SMTP') as smtp:
+            p.send_one(self.db, self.cfg)
+            smtp.assert_not_called()
     def test_no_findings_no_outreach_draft(self):
         self.assertEqual(p.compose(self.cfg, 'shop.test', []), ('', ''))
     def test_humanizer_wording_preserves_evidence_and_footer(self):

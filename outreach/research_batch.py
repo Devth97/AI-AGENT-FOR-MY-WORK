@@ -1,4 +1,4 @@
-"""Research-only batch runner; never sends email. Shares the scheduler lock."""
+"""Research-only batch runner; never sends email."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
@@ -98,7 +98,8 @@ def main():
     logging.basicConfig(level=logging.ERROR)
     logging.getLogger('scrapling').setLevel(logging.ERROR)
     db = p.connect()
-    lock = (p.ROOT / 'data' / 'run.lock').open('a+b')
+    # Research has its own lock so a long audit cannot block the send schedule.
+    lock = (p.ROOT / 'data' / 'research.lock').open('a+b')
     try:
         if os.name == 'nt':
             import msvcrt

@@ -41,6 +41,16 @@ class CampaignTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             campaign.reserve(self.db, [second], 1)
 
+    def test_daily_limit_blocks_additional_reservation(self):
+        first, second = self.lead(), self.lead('other.test')
+        campaign.reserve(self.db, [first], 750)
+        for i in range(49):
+            self.db.execute('INSERT INTO leads(domain,url,source,state,email,sent_at) VALUES(?,?,?,?,?,?)',
+                            (f'past{i}.test', 'https://past.test', 'fixture', 'sent', f'past{i}@test.example', p.now()))
+        self.db.commit()
+        with self.assertRaisesRegex(ValueError, 'Daily send limit'):
+            campaign.reserve(self.db, [second], 750)
+
     def test_history_check_required(self):
         msg = self.lead()
         msg['history_checked'] = False

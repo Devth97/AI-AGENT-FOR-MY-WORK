@@ -342,6 +342,9 @@ def send_one(db, cfg):
     sync_replies(db)
     # The outer process lock serializes runs. Persist a reservation BEFORE SMTP.
     # Unknown delivery outcomes are never automatically retried.
+    total = db.execute('SELECT COUNT(*) FROM leads WHERE sent_at IS NOT NULL').fetchone()[0]
+    if total >= cfg['campaign_target_total']:
+        return
     today = now()[:10]
     count = db.execute('SELECT COUNT(*) FROM leads WHERE sent_at LIKE ?', (today+'%',)).fetchone()[0]
     last = db.execute('SELECT MAX(sent_at) FROM leads').fetchone()[0]

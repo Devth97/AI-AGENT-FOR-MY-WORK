@@ -1,6 +1,6 @@
 # Growplus AI Agency outreach automation
 
-Local Python project for worldwide ecommerce prospect research and individual outreach. Sender: Khalandar Thameem, khalandarthameem97@gmail.com. Target: 50 qualified first-contact emails per UTC day. No paid search or AI API is required by default.
+Local Python project for worldwide ecommerce prospect research and individual outreach. Sender: Khalandar Thameem, khalandarthameem97@gmail.com. Target: 50 qualified first-contact emails per UTC day and 750 total campaign sends (the original 250 plus 500 additional). No paid search or AI API is required by default.
 
 ## Run
 
@@ -23,10 +23,10 @@ During an interactive assistant session, the connected Gmail tool can send autho
 
 The receipt importer accepts full Gmail message objects, checks the sender and SENT label, and preserves the actual text, timestamp and RFC Message-ID. Receipt files and prospect records stay in ignored `data/`.
 
-For the authorized 250-prospect interactive campaign, `connected_campaign.py` reserves reviewed messages before sending. It checks the total campaign target, suppression and prior contact in one transaction. Check Gmail history before marking a message `history_checked`. A reservation counts toward the target until its Gmail receipt is reconciled, preventing retries after an uncertain result. Store one receipt file per message to avoid Windows command-length limits. This helper never sends mail itself; the connected Gmail tool sends each reviewed message individually. The scheduled SMTP cap remains 50 per day.
+For an interactive campaign, `connected_campaign.py` reserves reviewed messages before sending. It checks the 750-send ceiling, 50-per-day limit, suppression and prior contact in one transaction. Check Gmail history before marking a message `history_checked`. A reservation counts toward the target until its Gmail receipt is reconciled, preventing retries after an uncertain result. Store one receipt file per message to avoid Windows command-length limits. This helper never sends mail itself; the connected Gmail tool sends each reviewed message individually.
 
 ```powershell
-.\.venv\Scripts\python.exe connected_campaign.py data/reviewed-messages.json --target 250
+.\.venv\Scripts\python.exe connected_campaign.py data/reviewed-messages.json --target 750
 .\.venv\Scripts\python.exe -m unittest -v test_pipeline.py test_connected_campaign.py
 ```
 
@@ -34,12 +34,15 @@ For the authorized 250-prospect interactive campaign, `connected_campaign.py` re
 
 `import_registry.py` imports candidate domains from the [StoreProfiles public registry](https://storeprofiles.com/dataset), licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Source attribution, retrieval date and the directory slug stay with each lead. Directory scores do not qualify leads or become email claims. Scrapling checks each store's own pages for published role contacts and page evidence.
 
+`import_shopify_dataset.py` imports candidate domains from the [public Shopify website list](https://huggingface.co/datasets/snncn/shopify-websites), licensed under Apache 2.0. Its URL list is only a discovery source; the live Scrapling audit must still confirm the store, contact address and page findings.
+
 ```powershell
 .\.venv\Scripts\python.exe import_registry.py
+.\.venv\Scripts\python.exe import_shopify_dataset.py
 .\.venv\Scripts\python.exe research_batch.py --searches 0 --max-sites 300 --workers 8
 ```
 
-The research runner supports up to eight independent site audits at once, with the existing robots checks and crawl delays. Each worker has an isolated temporary database; results only update leads still marked `new`. It shares the scheduler lock and never sends mail. `--searches 24` also runs rotating free searches across ecommerce niches and markets; search services may throttle these requests.
+The research runner supports up to eight independent site audits at once, with the existing robots checks and crawl delays. Each worker has an isolated temporary database; results only update leads still marked `new`. It uses a separate research lock so a long audit does not block the send schedule, and never sends mail. The research schedule audits up to 500 sites every six hours. `--searches 24` also runs rotating free searches across ecommerce niches and markets; search services may throttle these requests.
 
 The connected Gmail tool in chat confirms the sender identity, but its login cannot be exported into a local scheduled Python program. This local runner uses Gmail SMTP with STARTTLS and IMAP with TLS.
 
@@ -49,7 +52,7 @@ The connected Gmail tool in chat confirms the sender identity, but its login can
 
 ## Schedule
 
-`./install-schedule.ps1` registers two Windows tasks: research every six hours and a send attempt every fifteen minutes. Research and sending share an exclusive process lock. Send attempts do nothing while `send_enabled` is false. The daily cap is 50, with at least 15 minutes between sends. The PC must be awake, connected to the internet, and this Windows account logged in. This is not cloud hosting.
+`./install-schedule.ps1` registers two Windows tasks: research every six hours and a send attempt every fifteen minutes. Each task type has its own exclusive process lock. Send attempts do nothing while `send_enabled` is false. The daily cap is 50, with at least 15 minutes between sends; all sending stops once the ledger reaches 750 reservations or confirmed sends. The PC must be awake, connected to the internet, and this Windows account logged in. This is not cloud hosting.
 
 On Windows installations that disable scripts, run the reviewed scripts with a process-only override, for example `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\connect-gmail.ps1`. The scheduled tasks use this process-only override; they do not change the machine-wide execution policy.
 

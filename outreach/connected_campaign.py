@@ -11,8 +11,12 @@ def reserve(db, messages, target):
     db.execute('BEGIN IMMEDIATE')
     try:
         used = db.execute('SELECT COUNT(*) FROM leads WHERE sent_at IS NOT NULL').fetchone()[0]
-        if used + len(messages) > target:
+        if used + len(messages) > min(target, cfg['campaign_target_total']):
             raise ValueError('Campaign target would be exceeded')
+        today = p.now()[:10]
+        daily_used = db.execute('SELECT COUNT(*) FROM leads WHERE sent_at LIKE ?', (today + '%',)).fetchone()[0]
+        if daily_used + len(messages) > cfg['daily_limit']:
+            raise ValueError('Daily send limit would be exceeded')
         for msg in messages:
             row = db.execute('SELECT * FROM leads WHERE domain=?', (msg['domain'],)).fetchone()
             if not row or row['state'] != 'ready' or row['sent_at'] or row['email'] != msg['to']:

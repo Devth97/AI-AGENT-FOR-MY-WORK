@@ -7,6 +7,7 @@
   "offer": "website redesign and SEO, answer engine optimization (AEO), and generative engine optimization (GEO)",
   "send_enabled": false,
   "daily_limit": 50,
+  "campaign_target_total": 750,
   "min_send_interval_seconds": 900,
   "max_audits_per_run": 30,
   "min_findings": 2,

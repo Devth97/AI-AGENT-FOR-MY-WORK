@@ -364,10 +364,8 @@ def send_one(db, cfg):
     total = db.execute('SELECT COUNT(*) FROM leads WHERE sent_at IS NOT NULL').fetchone()[0]
     if total >= cfg['campaign_target_total']:
         return
-    today = now()[:10]
-    count = db.execute('SELECT COUNT(*) FROM leads WHERE sent_at LIKE ?', (today+'%',)).fetchone()[0]
     last = db.execute('SELECT MAX(sent_at) FROM leads').fetchone()[0]
-    if count >= cfg['daily_limit'] or (last and (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() < cfg['min_send_interval_seconds']):
+    if last and (datetime.now(timezone.utc) - datetime.fromisoformat(last)).total_seconds() < cfg['min_send_interval_seconds']:
         return
     row = db.execute("SELECT * FROM leads WHERE state='ready' AND email NOT IN (SELECT email FROM suppressed) AND email NOT IN (SELECT email FROM leads WHERE sent_at IS NOT NULL) ORDER BY checked LIMIT 1").fetchone()
     if not row:

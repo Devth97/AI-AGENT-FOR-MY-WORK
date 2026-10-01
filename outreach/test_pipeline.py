@@ -87,12 +87,16 @@ class PipelineTests(unittest.TestCase):
             p.sync_replies(self.db)
         self.assertEqual(mailbox.fetched, 1)
         self.assertIsNotNone(self.db.execute('SELECT 1 FROM suppressed WHERE email=?', ('hello@shop.test',)).fetchone())
-    def test_daily_limit(self):
+    def test_prior_daily_volume_does_not_block_send(self):
         self.add()
-        self.cfg['daily_limit'] = 0
+        self.cfg['min_send_interval_seconds'] = 0
+        for i in range(50):
+            self.db.execute('INSERT INTO leads(domain,url,source,state,email,sent_at) VALUES(?,?,?,?,?,?)',
+                            (f'past{i}.test', 'https://past.test', 'fixture', 'sent', f'past{i}@test.example', p.now()))
+        self.db.commit()
         with patch.dict(p.os.environ, self.env), patch.object(p,'sync_replies'), patch.object(p.smtplib,'SMTP') as smtp:
             p.send_one(self.db, self.cfg)
-            smtp.assert_not_called()
+            smtp.return_value.__enter__.return_value.send_message.assert_called_once()
     def test_campaign_target_blocks_smtp(self):
         self.add()
         self.cfg['campaign_target_total'] = 0

@@ -1,6 +1,6 @@
 # Growplus AI Agency outreach automation
 
-Local Python project for worldwide ecommerce prospect research and individual outreach. Sender: Khalandar Thameem, khalandarthameem97@gmail.com. Target: 50 qualified first-contact emails per UTC day and 750 total campaign sends (the original 250 plus 500 additional). No paid search or AI API is required by default.
+Local Python project for worldwide ecommerce prospect research and individual outreach. Sender: Khalandar Thameem, khalandarthameem97@gmail.com. Campaign ceiling: 750 total first-contact sends (the original 250 plus 500 additional). No paid search or AI API is required by default.
 
 ## Run
 
@@ -23,7 +23,7 @@ During an interactive assistant session, the connected Gmail tool can send autho
 
 The receipt importer accepts full Gmail message objects, checks the sender and SENT label, and preserves the actual text, timestamp and RFC Message-ID. Receipt files and prospect records stay in ignored `data/`.
 
-For an interactive campaign, `connected_campaign.py` reserves reviewed messages before sending. It checks the 750-send ceiling, 50-per-day limit, suppression and prior contact in one transaction. Check Gmail history before marking a message `history_checked`. A reservation counts toward the target until its Gmail receipt is reconciled, preventing retries after an uncertain result. Store one receipt file per message to avoid Windows command-length limits. This helper never sends mail itself; the connected Gmail tool sends each reviewed message individually.
+For an interactive campaign, `connected_campaign.py` reserves reviewed messages before sending. It checks the 750-send ceiling, suppression and prior contact in one transaction. Check Gmail history before marking a message `history_checked`. A reservation counts toward the target until its Gmail receipt is reconciled, preventing retries after an uncertain result. Store one receipt file per message to avoid Windows command-length limits. This helper never sends mail itself; the connected Gmail tool sends each reviewed message individually.
 
 ```powershell
 .\.venv\Scripts\python.exe connected_campaign.py data/reviewed-messages.json --target 750
@@ -52,7 +52,7 @@ The connected Gmail tool in chat confirms the sender identity, but its login can
 
 ## Schedule
 
-`./install-schedule.ps1` registers two Windows tasks: research every six hours and a send attempt every fifteen minutes. Each task type has its own exclusive process lock. Send attempts do nothing while `send_enabled` is false. The daily cap is 50, with at least 15 minutes between sends; all sending stops once the ledger reaches 750 reservations or confirmed sends. The PC must be awake, connected to the internet, and this Windows account logged in. This is not cloud hosting.
+`./install-schedule.ps1` registers two Windows tasks: research every six hours and a send attempt every fifteen minutes. Each task type has its own exclusive process lock. Send attempts do nothing while `send_enabled` is false. There is no local daily send cap; sends are spaced at least 15 minutes apart, and all sending stops once the ledger reaches 750 reservations or confirmed sends. The PC must be awake, connected to the internet, and this Windows account logged in. This is not cloud hosting.
 
 On Windows installations that disable scripts, run the reviewed scripts with a process-only override, for example `powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\connect-gmail.ps1`. The scheduled tasks use this process-only override; they do not change the machine-wide execution policy.
 

@@ -12,7 +12,7 @@ try {
     if (-not $config.postal_address) { throw 'Configure the business mailing address first.' }
     $config.send_enabled = $true
     $config | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $configPath -Encoding UTF8
-    Write-Output 'Gmail verified. Sending is enabled for the configured 50/day campaign.'
+    Write-Output 'Gmail verified. Sending is enabled for the configured campaign target and send interval.'
 } finally {
     Remove-Item Env:SMTP_PASSWORD -ErrorAction SilentlyContinue
 }

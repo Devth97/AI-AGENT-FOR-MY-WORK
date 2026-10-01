@@ -1,5 +1,6 @@
 import json
 import unittest
+from email.message import EmailMessage
 from unittest.mock import patch, MagicMock
 import pipeline as p
 from scrapling.parser import Selector
@@ -7,7 +8,7 @@ from scrapling.parser import Selector
 class PipelineTests(unittest.TestCase):
     def setUp(self):
         self.db = p.connect(':memory:')
-        self.cfg = json.loads((p.ROOT / 'config.json').read_text())
+        self.cfg = json.loads((p.ROOT / 'config.json').read_text(encoding='utf-8-sig'))
         self.cfg.update(send_enabled=True, postal_address='Test address', market='Test')
         self.env = {k: 'test' for k in ('SMTP_HOST','SMTP_USER','SMTP_PASSWORD','IMAP_HOST','IMAP_USER','IMAP_PASSWORD')}
     def tearDown(self):
@@ -61,6 +62,31 @@ class PipelineTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 p.send_one(self.db, self.cfg)
             smtp.assert_not_called()
+    def test_reply_sync_uses_uid_cursor_and_suppresses_reply(self):
+        self.add()
+        self.db.execute("UPDATE leads SET state='sent', sent_at=?, message_id=?", (p.now(), '<one@shop.test>'))
+        self.db.commit()
+        reply = EmailMessage()
+        reply['From'] = 'hello@shop.test'
+        reply.set_content('Please stop')
+        class Mailbox:
+            fetched = 0
+            def __enter__(self): return self
+            def __exit__(self, *_): return False
+            def login(self, *_): pass
+            def select(self, *_ , **__): return 'OK', [b'1']
+            def response(self, *_): return 'UIDVALIDITY', [b'123']
+            def uid(self, action, *args):
+                if action == 'SEARCH':
+                    return 'OK', [b'5']
+                self.fetched += 1
+                return 'OK', [(b'5', reply.as_bytes())]
+        mailbox = Mailbox()
+        with patch.dict(p.os.environ, self.env), patch.object(p.imaplib, 'IMAP4_SSL', return_value=mailbox):
+            p.sync_replies(self.db)
+            p.sync_replies(self.db)
+        self.assertEqual(mailbox.fetched, 1)
+        self.assertIsNotNone(self.db.execute('SELECT 1 FROM suppressed WHERE email=?', ('hello@shop.test',)).fetchone())
     def test_daily_limit(self):
         self.add()
         self.cfg['daily_limit'] = 0

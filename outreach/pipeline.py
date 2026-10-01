@@ -13,7 +13,7 @@ import socket
 import sqlite3
 import ssl
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email import message_from_bytes
 from email.message import EmailMessage
 from email.utils import parseaddr, formataddr, make_msgid
@@ -299,18 +299,34 @@ def suppress(db, address, reason):
 
 def sync_replies(db):
     # Every reply from a contacted address stops automation, including positive replies.
-    # Scan all mail on each run; this favors correctness over efficiency for small campaigns.
+    # On the first run, scan from before the first campaign send. Afterwards, fetch
+    # only unseen UIDs. Reset the cursor if Gmail changes the inbox UIDVALIDITY.
+    first_send = db.execute('SELECT MIN(sent_at) FROM leads WHERE sent_at IS NOT NULL').fetchone()[0]
+    if not first_send:
+        return
+    since = (datetime.fromisoformat(first_send) - timedelta(days=1)).strftime('%d-%b-%Y')
+    contacted = {r['email']: r['message_id'] for r in db.execute(
+        'SELECT email,message_id FROM leads WHERE sent_at IS NOT NULL AND email IS NOT NULL')}
     with imaplib.IMAP4_SSL(os.environ['IMAP_HOST'], int(os.getenv('IMAP_PORT', '993'))) as mailbox:
         mailbox.login(os.environ['IMAP_USER'], os.environ['IMAP_PASSWORD'])
         status, _ = mailbox.select('INBOX', readonly=True)
         if status != 'OK':
             raise RuntimeError('Cannot read reply inbox; sending stopped')
-        status, ids = mailbox.search(None, 'ALL')
+        validity = mailbox.response('UIDVALIDITY')[1]
+        if not validity or not validity[0]:
+            raise RuntimeError('Cannot verify reply inbox UID validity; sending stopped')
+        validity = validity[0].decode() if isinstance(validity[0], bytes) else str(validity[0])
+        previous = db.execute("SELECT value FROM settings WHERE key='inbox_uidvalidity'").fetchone()
+        cursor = db.execute("SELECT value FROM settings WHERE key='inbox_last_uid'").fetchone()
+        last_uid = int(cursor[0]) if previous and previous[0] == validity and cursor else 0
+        status, ids = mailbox.uid('SEARCH', None, 'SINCE', since)
         if status != 'OK':
             raise RuntimeError('Cannot search reply inbox; sending stopped')
-        contacted = {r['email']: r['message_id'] for r in db.execute("SELECT email,message_id FROM leads WHERE sent_at IS NOT NULL")}
         for ident in ids[0].split():
-            status, parts = mailbox.fetch(ident, '(BODY.PEEK[])')
+            uid = int(ident)
+            if uid <= last_uid:
+                continue
+            status, parts = mailbox.uid('FETCH', ident, '(BODY.PEEK[])')
             if status != 'OK':
                 raise RuntimeError('Reply sync incomplete; sending stopped')
             for part in parts:
@@ -326,6 +342,9 @@ def sync_replies(db):
                     for address, mid in contacted.items():
                         if (mid and mid in raw) or address in raw:
                             suppress(db, address, 'Delivery report')
+            db.execute("INSERT OR REPLACE INTO settings VALUES('inbox_uidvalidity',?)", (validity,))
+            db.execute("INSERT OR REPLACE INTO settings VALUES('inbox_last_uid',?)", (str(uid),))
+            db.commit()
 
 def send_one(db, cfg):
     if not cfg['send_enabled']:
